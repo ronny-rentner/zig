@@ -1,4 +1,4 @@
-zig0.16 (0.16.0-1) unstable; urgency=medium
+zig0.16 (0.16.0-1) forky; urgency=medium
 
   * Build for Debian from the git tag 0.16.0, with the packaging of the
     PPA unchanged.
