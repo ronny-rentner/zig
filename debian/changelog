@@ -1,3 +1,10 @@
+zig0.16 (0.16.0-1) unstable; urgency=medium
+
+  * Build for Debian from the git tag 0.16.0, with the packaging of the
+    PPA unchanged.
+
+ -- Local Build <local@build.invalid>  Wed, 15 Oct 2026 19:00:00 +0200
+
 zig0.16 (0.16.0~ppa1-0) questing; urgency=medium
 
   * Zig 0.16.0 for PPA
