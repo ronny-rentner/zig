@@ -1,3 +1,10 @@
+zig0.17 (0.17.0-1) forky; urgency=medium
+
+  * Build for Debian from the git tag 0.17.0: the zig0.16 packaging renamed
+    to zig0.17 and moved from LLVM 21 to LLVM 22, which Zig 0.17 requires.
+
+ -- Local Build <local@build.invalid>  Sat, 25 Oct 2026 06:30:00 +0200
+
 zig0.16 (0.16.0-1) forky; urgency=medium
 
   * Build for Debian from the git tag 0.16.0, with the packaging of the
