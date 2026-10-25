@@ -1,0 +1,9 @@
+# build output of debhelper
+.debhelper/
+debhelper-build-stamp
+files
+*.substvars
+*.debhelper.log
+tmp/
+zig0.17/
+zig0.17-dev/
