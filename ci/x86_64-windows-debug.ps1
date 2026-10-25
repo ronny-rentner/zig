@@ -1,9 +1,10 @@
 $TARGET = "x86_64-windows-gnu"
 $MCPU = "baseline"
-$PREFIX_PATH = "$($Env:USERPROFILE)\deps\zig+llvm+lld+clang-$TARGET-0.16.0-dev.104+689461e31"
+$PREFIX_PATH = "$($Env:USERPROFILE)\deps\zig+llvm+lld+clang-$TARGET-0.17.0-dev.203+073889523"
 $ZIG = "$PREFIX_PATH\bin\zig.exe"
-$ZIG_LIB_DIR = "$(Get-Location)\lib"
 $ZSF_MAX_RSS = if ($Env:ZSF_MAX_RSS) { $Env:ZSF_MAX_RSS } else { 0 }
+
+$Env:PATH = "$($Env:USERPROFILE)\local\bin;$Env:PATH"
 
 function CheckLastExitCode {
     if (!$?) {
@@ -19,7 +20,7 @@ $Env:ZIG_GLOBAL_CACHE_DIR="$(Get-Location)\zig-global-cache"
 $Env:ZIG_LOCAL_CACHE_DIR="$(Get-Location)\zig-local-cache"
 
 Write-Output "Building from source..."
-New-Item -Path 'build-debug' -ItemType Directory
+New-Item -Force -Path 'build-debug' -ItemType Directory
 Set-Location -Path 'build-debug'
 
 # CMake gives a syntax error when file paths with backward slashes are used.
@@ -42,21 +43,30 @@ CheckLastExitCode
 ninja install
 CheckLastExitCode
 
+# Must be done after zig cc is finished.
+$Env:ZIG_LIB_DIR="$(Get-Location)\..\lib"
+
 Write-Output "Main test suite..."
-stage3-debug\bin\zig build test docs `
-  --maxrss $ZSF_MAX_RSS `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
+stage3-debug\bin\zig.exe build install test docs `
+  --maxrss "$ZSF_MAX_RSS" `
+  --prefix stage4-debug `
   --search-prefix "$PREFIX_PATH" `
-  -Dstatic-llvm `
-  -Dskip-non-native `
-  -Dskip-test-incremental `
+  --test-timeout 30m `
+  -Dversion-string="$(stage3-debug\bin\zig.exe version)" `
+  -Dtarget="$TARGET" `
+  -Dcpu="$MCPU" `
+  -Duse-zig-libcxx `
+  -Denable-llvm `
+  -Dno-lib `
   -Denable-symlinks-windows `
-  --test-timeout 30m
+  -Dskip-non-native
+CheckLastExitCode
+
+stage4-debug\bin\zig.exe test ..\test\behavior.zig
 CheckLastExitCode
 
 Write-Output "Build x86_64-windows-msvc behavior tests using the C backend..."
-stage3-debug\bin\zig build-obj `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
+stage3-debug\bin\zig.exe build-obj `
   -ofmt=c `
   -OReleaseSmall `
   --name compiler_rt `
@@ -66,8 +76,7 @@ stage3-debug\bin\zig build-obj `
   ..\lib\compiler_rt.zig
 CheckLastExitCode
 
-stage3-debug\bin\zig test `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
+stage3-debug\bin\zig.exe test `
   -ofmt=c `
   -femit-bin="behavior-x86_64-windows-msvc.c" `
   --test-no-exec `

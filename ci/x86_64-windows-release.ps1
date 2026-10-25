@@ -1,9 +1,10 @@
 $TARGET = "x86_64-windows-gnu"
 $MCPU = "baseline"
-$PREFIX_PATH = "$($Env:USERPROFILE)\deps\zig+llvm+lld+clang-$TARGET-0.16.0-dev.104+689461e31"
+$PREFIX_PATH = "$($Env:USERPROFILE)\deps\zig+llvm+lld+clang-$TARGET-0.17.0-dev.203+073889523"
 $ZIG = "$PREFIX_PATH\bin\zig.exe"
-$ZIG_LIB_DIR = "$(Get-Location)\lib"
 $ZSF_MAX_RSS = if ($Env:ZSF_MAX_RSS) { $Env:ZSF_MAX_RSS } else { 0 }
+
+$Env:PATH = "$($Env:USERPROFILE)\local\bin;$Env:PATH"
 
 function CheckLastExitCode {
     if (!$?) {
@@ -19,7 +20,7 @@ $Env:ZIG_GLOBAL_CACHE_DIR="$(Get-Location)\zig-global-cache"
 $Env:ZIG_LOCAL_CACHE_DIR="$(Get-Location)\zig-local-cache"
 
 Write-Output "Building from source..."
-New-Item -Path 'build-release' -ItemType Directory
+New-Item -Force -Path 'build-release' -ItemType Directory
 Set-Location -Path 'build-release'
 
 # CMake gives a syntax error when file paths with backward slashes are used.
@@ -42,32 +43,35 @@ CheckLastExitCode
 ninja install
 CheckLastExitCode
 
-Write-Output "Main test suite..."
-stage3-release\bin\zig.exe build test docs `
-  --maxrss $ZSF_MAX_RSS `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
-  --search-prefix "$PREFIX_PATH" `
-  -Dstatic-llvm `
-  -Dskip-non-native `
-  -Dskip-test-incremental `
-  -Denable-symlinks-windows `
-  --test-timeout 30m
-CheckLastExitCode
+# Must be done after zig cc is finished.
+$Env:ZIG_LIB_DIR="$(Get-Location)\..\lib"
 
-# Ensure that stage3 and stage4 are byte-for-byte identical.
-Write-Output "Build and compare stage4..."
-stage3-release\bin\zig.exe build `
+Write-Output "Main test suite..."
+stage3-release\bin\zig.exe build install test docs `
+  --maxrss "$ZSF_MAX_RSS" `
   --prefix stage4-release `
-  -Denable-llvm `
-  -Dno-lib `
+  --search-prefix "$PREFIX_PATH" `
+  --test-timeout 30m `
+  -Dversion-string="$(stage3-release\bin\zig.exe version)" `
+  -Dtarget="$TARGET" `
+  -Dcpu="$MCPU" `
   -Doptimize=ReleaseFast `
   -Dstrip `
-  -Dtarget="$TARGET" `
   -Duse-zig-libcxx `
-  -Dversion-string="$(stage3-release\bin\zig version)"
+  -Denable-llvm `
+  -Dno-lib `
+  -Denable-symlinks-windows `
+  -Dskip-non-native
 CheckLastExitCode
 
-# Compare-Object returns an error code if the files differ.
+# Ensure that the fuzzer at least compiles.
+# https://codeberg.org/ziglang/zig/issues/31893
+# stage3-release\bin\zig.exe build test-std --fuzz=1K -Dno-lib -Dfuzz-only -Doptimize=ReleaseSafe
+# CheckLastExitCode
+# stage3-release\bin\zig.exe build test-std --fuzz=1K -Dno-lib -Dfuzz-only -Doptimize=Debug
+# CheckLastExitCode
+
+# Ensure that stage3 and stage4 are byte-for-byte identical.
 Write-Output "If the following command fails, it means nondeterminism has been"
 Write-Output "introduced, making stage3 and stage4 no longer byte-for-byte identical."
 Compare-Object (Get-Content stage3-release\bin\zig.exe) (Get-Content stage4-release\bin\zig.exe)
@@ -75,7 +79,6 @@ CheckLastExitCode
 
 Write-Output "Build x86_64-windows-msvc behavior tests using the C backend..."
 stage3-release\bin\zig.exe build-obj `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
   -ofmt=c `
   -OReleaseSmall `
   --name compiler_rt `
@@ -86,7 +89,6 @@ stage3-release\bin\zig.exe build-obj `
 CheckLastExitCode
 
 stage3-release\bin\zig.exe test `
-  --zig-lib-dir "$ZIG_LIB_DIR" `
   -ofmt=c `
   -femit-bin="behavior-x86_64-windows-msvc.c" `
   --test-no-exec `

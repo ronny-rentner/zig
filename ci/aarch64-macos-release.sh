@@ -5,20 +5,21 @@
 set -x
 set -e
 
-ZIGDIR="$PWD"
 TARGET="aarch64-macos-none"
 MCPU="baseline"
-CACHE_BASENAME="zig+llvm+lld+clang-$TARGET-0.16.0-dev.104+689461e31"
+CACHE_BASENAME="zig+llvm+lld+clang-$TARGET-0.17.0-dev.203+073889523"
 PREFIX="$HOME/$CACHE_BASENAME"
 ZIG="$PREFIX/bin/zig"
 
+ZIGDIR="$PWD"
 if [ ! -d "$PREFIX" ]; then
   cd $HOME
   curl -L -O "https://ziglang.org/deps/$CACHE_BASENAME.tar.xz"
   tar xf "$CACHE_BASENAME.tar.xz"
 fi
-
 cd $ZIGDIR
+
+export PATH="$HOME/local/bin:$PATH"
 
 # Override the cache directories because they won't actually help other CI runs
 # which will be testing alternate versions of zig, and ultimately would just
@@ -26,7 +27,7 @@ cd $ZIGDIR
 export ZIG_GLOBAL_CACHE_DIR="$PWD/zig-global-cache"
 export ZIG_LOCAL_CACHE_DIR="$PWD/zig-local-cache"
 
-mkdir build-release
+mkdir -p build-release
 cd build-release
 
 cmake .. \
@@ -43,27 +44,36 @@ cmake .. \
 
 ninja install
 
-stage3-release/bin/zig build test docs \
-  --zig-lib-dir "$PWD/../lib" \
-  -Denable-macos-sdk \
-  -Dstatic-llvm \
-  -Dskip-non-native \
-  --search-prefix "$PREFIX" \
-  --test-timeout 2m
+# Must be done after zig cc is finished.
+export ZIG_LIB_DIR="$PWD/../lib"
 
-# Ensure that stage3 and stage4 are byte-for-byte identical.
-stage3-release/bin/zig build \
-  --maxrss ${ZSF_MAX_RSS:-0} \
+stage3-release/bin/zig build install test docs \
+  --maxrss "${ZSF_MAX_RSS:-0}" \
   --prefix stage4-release \
-  -Denable-llvm \
-  -Dno-lib \
+  --search-prefix "$PREFIX" \
+  --test-timeout 2m \
+  -Dversion-string="$(stage3-release/bin/zig version)" \
+  -Dtarget=$TARGET \
+  -Dcpu=$MCPU \
   -Doptimize=ReleaseFast \
   -Dstrip \
-  -Dtarget=$TARGET \
   -Duse-zig-libcxx \
-  -Dversion-string="$(stage3-release/bin/zig version)"
+  -Denable-llvm \
+  -Dno-lib \
+  -Denable-macos-sdk \
+  -Dskip-spirv \
+  -Dskip-wasm \
+  -Dskip-freebsd \
+  -Dskip-netbsd \
+  -Dskip-openbsd \
+  -Dskip-windows \
+  -Dskip-linux
 
-# diff returns an error code if the files differ.
+# Ensure that the fuzzer at least compiles.
+stage3-release/bin/zig build test-std --fuzz=1K -Dno-lib -Dfuzz-only -Doptimize=ReleaseSafe
+stage3-release/bin/zig build test-std --fuzz=1K -Dno-lib -Dfuzz-only -Doptimize=Debug
+
+# Ensure that stage3 and stage4 are byte-for-byte identical.
 echo "If the following command fails, it means nondeterminism has been"
 echo "introduced, making stage3 and stage4 no longer byte-for-byte identical."
 diff stage3-release/bin/zig stage4-release/bin/zig
