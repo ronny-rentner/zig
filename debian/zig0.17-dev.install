@@ -1,2 +1,4 @@
 usr/lib/zig/* /usr/lib/zig0.17/lib
 usr/share/doc/zig0.17 usr/share/doc
+# zig 0.17 installs the language reference to usr/doc, no longer under lib/zig/docs
+usr/doc/langref.html usr/share/doc/zig0.17
