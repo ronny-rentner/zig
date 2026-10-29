@@ -1,6 +1,6 @@
 Source: zig0.17
 Priority: optional
-Maintainer: Mike Kasberg <kasberg.mike@gmail.com>
+Maintainer: Ronny Rentner <debian@ronny-rentner.de>
 Build-Depends: chrpath,
                cmake (>= 3.19),
                debhelper-compat (= 13),

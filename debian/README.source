@@ -1,10 +1,7 @@
-This is a zig package for a Ghostty Ubuntu PPA.
+This repository packages Zig for Debian forky.
 
-Ghostty depends on a more recent zig version than the Ubuntu
-repositories normally contain, so we build our own zig package
-for use in the Ghostty PPA.
-
-This is based on packaging source from Ubuntu:
+The packaging is adapted from mkasberg/ghostty-ubuntu, which in turn
+is based on packaging source from Ubuntu:
 https://launchpad.net/ubuntu/+source/zig0.14
 
 ----
@@ -14,15 +11,14 @@ Generating the unvendored source file can be performed via e.g.:
 
  uscan --repack -v
 
-uscan gets its list of excluded files from debian/copyright. We
-link the libunwind sources installed by emscripten to replace
-the vendored copy. CMake directives eliminate the need for the
-remainder.
+uscan gets its list of excluded files from debian/copyright.
+The build uses Debian's LLVM and Clang libraries. The compiler headers
+in lib/include are replaced by a link to Debian's Clang headers.
 
 Upstream signs with minisign.
 
 There is a binary present even in the Debianized source:
-src/zig1.wasm. This is a precompiled WASM file implementing
+stage1/zig1.wasm. This is a precompiled WASM file implementing
 the zig bootstrap compiler. Its sources are present, and
 the zig binary we build can rebuild it, so it is believed
 that this comes under the compiler bootstrap exemption.
@@ -36,7 +32,7 @@ The lib directory in the source tarball has vendored code:
 1. libunwind and libtsan from the LLVM project
 2. libcxx and libcxxabi from the LLVM project
 3. The libc directory contains libc implementations for 
-   various opeerating system / ABI targets. 
+   various operating system / ABI targets.
 
 These sources may be fully-vendored upstream sources, like
 libunwind and libtsan, that are compiled and statically linked
